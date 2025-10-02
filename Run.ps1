@@ -1,7 +1,7 @@
 # ================================
 # Diagnostics Dashboard Tool
 # Created by Blue
-# Final Version with Instant Keypress
+# Final Version with Instant Keypress & Safety Fix
 # ================================
 
 # --------------------------------
@@ -14,7 +14,6 @@ $ErrorActionPreference = "Stop"
 
 $toolsUrl = "https://raw.githubusercontent.com/BlueStreak79/Diagnostics/main/tools.json"
 
-# Fallback tool list in case JSON fails
 $appsFallback = @(
     [PSCustomObject]@{ Id = 1; Name = "AquaKeyTest";     Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/AquaKeyTest.exe" },
     [PSCustomObject]@{ Id = 2; Name = "BatteryInfoView"; Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/BatteryInfoView.exe" },
@@ -199,28 +198,30 @@ function Show-SystemInfo {
 }
 
 # --------------------------------
-# SECTION 6: Main Loop with Instant Keypress
+# SECTION 6: Main Loop with Instant Keypress & Safety Check
 # --------------------------------
 while ($true) {
     Show-Dashboard
     Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
 
-    $key = [System.Console]::ReadKey($true)  # true = no echo
+    $key = [System.Console]::ReadKey($true)
     $selection = $key.KeyChar
 
-    if ($selection -eq '0') {
-        Write-Host "`nExiting... Goodbye!" -ForegroundColor Green
-        break
-    }
-    if ($selection -eq '9') {
-        Show-SystemInfo
+    # Only allow digits
+    if ($selection -match '^\d$') {
+        $selInt = [int]$selection
+    } else {
+        Write-Host "`n❌ Invalid input — please press a valid number." -ForegroundColor Yellow
+        Start-Sleep -Seconds 1
         continue
     }
 
-    $selInt = 0
-    if (-not [int]::TryParse($selection, [ref]$selInt)) {
-        Write-Host "`n❌ Invalid input." -ForegroundColor Yellow
-        Start-Sleep -Seconds 1
+    if ($selInt -eq 0) {
+        Write-Host "`nExiting... Goodbye!" -ForegroundColor Green
+        break
+    }
+    if ($selInt -eq 9) {
+        Show-SystemInfo
         continue
     }
 
