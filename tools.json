@@ -1,0 +1,42 @@
+{
+  "1": {
+    "Name": "AquaKeyTest",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/AquaKeyTest.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  },
+  "2": {
+    "Name": "BatteryInfoView",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/BatteryInfoView.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  },
+  "3": {
+    "Name": "Camera",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/Camera.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  },
+  "4": {
+    "Name": "lusrmgr",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/lusrmgr.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  },
+  "5": {
+    "Name": "MemTest64",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/MemTest64.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  },
+  "6": {
+    "Name": "LCDtest",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/LCDtest.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  },
+  "7": {
+    "Name": "OemKey",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/OemKey.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  },
+  "8": {
+    "Name": "ShowKeyPlus",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/ShowKeyPlus.exe",
+    "SHA256": "PUT_REAL_HASH_HERE"
+  }
+}
