@@ -55,13 +55,4 @@ function Download-And-Run($number) {
         }
         Write-Host "Launching $($app.Name)..."
         Start-Process -FilePath $FilePath
-        Write-Host "$($app.Name) started.`n"
-    }
-    catch {
-        Write-Error "Error with $($app.Name): $_"
-    }
-}
-
-# ==========================
-# Main Loop
-# ==========================
+        Write-Host "$
