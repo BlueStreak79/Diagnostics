@@ -5,21 +5,21 @@
 # "These diagnostics are created by Blue - unlocking system secrets with just one click."
 # ==========================
 
-# Stop on errors
 $ErrorActionPreference = "Stop"
 
 # Enable TLS 1.2 for secure downloads
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-# Define applications list with direct download URLs
+# Define applications (official links from your repository)
 $apps = @{
-    1 = @{ Name = "AquaKeyTest.exe";  Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/AquaKeyTest.exe" }
-    2 = @{ Name = "BatteryInfoView.exe"; Url = "https://example.com/BatteryInfoView.exe" }
-    3 = @{ Name = "Camera.exe";   Url = "https://example.com/Camera.exe" }
-    4 = @{ Name = "lusrmgr.exe";  Url = "https://example.com/lusrmgr.exe" }
-    5 = @{ Name = "MemTest64.exe"; Url = "https://example.com/MemTest64.exe" }
-    6 = @{ Name = "LCDtest.exe";   Url = "https://example.com/LCDtest.exe" }
-    7 = @{ Name = "OemKey.exe";   Url = "https://example.com/OemKey.exe" }
+    1 = @{ Name = "AquaKeyTest";      Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/AquaKeyTest.exe" }
+    2 = @{ Name = "BatteryInfoView";  Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/BatteryInfoView.exe" }
+    3 = @{ Name = "Camera";           Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/Camera.exe" }
+    4 = @{ Name = "lusrmgr";          Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/lusrmgr.exe" }
+    5 = @{ Name = "MemTest64";        Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/MemTest64.exe" }
+    6 = @{ Name = "LCDtest";          Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/LCDtest.exe" }
+    7 = @{ Name = "OemKey";           Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/OemKey.exe" }
+    8 = @{ Name = "ShowKeyPlus";      Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/ShowKeyPlus.exe" }
 }
 
 function Show-Dashboard {
@@ -29,7 +29,6 @@ function Show-Dashboard {
     Write-Host "====================================" -ForegroundColor Cyan
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
-    
     foreach ($k in $apps.Keys | Sort-Object) {
         Write-Host "$k. $($apps[$k].Name)"
     }
@@ -43,8 +42,7 @@ function Download-And-Run($number) {
             Write-Host "Invalid selection." -ForegroundColor Red
             return
         }
-
-        $FilePath = Join-Path $env:TEMP $app.Name
+        $FilePath = Join-Path $env:TEMP "$($app.Name).exe"
         if (-not (Test-Path $FilePath)) {
             Write-Host "Downloading $($app.Name)..."
             Invoke-WebRequest -Uri $app.Url -OutFile $FilePath -UseBasicParsing
@@ -55,9 +53,7 @@ function Download-And-Run($number) {
         } else {
             Write-Host "$($app.Name) already exists in TEMP. Skipping download."
         }
-
         Write-Host "Launching $($app.Name)..."
-        # Launch without waiting, so user can run multiple apps
         Start-Process -FilePath $FilePath
         Write-Host "$($app.Name) started.`n"
     }
@@ -69,22 +65,3 @@ function Download-And-Run($number) {
 # ==========================
 # Main Loop
 # ==========================
-do {
-    Show-Dashboard
-    $choice = Read-Host "Enter your choice (0-7)"
-    if ($choice -eq "0") {
-        Write-Host "Cleaning up temporary files..."
-        foreach ($app in $apps.Values) {
-            $path = Join-Path $env:TEMP $app.Name
-            if (Test-Path $path) {
-                Remove-Item $path -Force
-                Write-Host "Removed $($app.Name) from TEMP."
-            }
-        }
-        Write-Host "Exiting dashboard. Goodbye!" -ForegroundColor Cyan
-        break
-    } else {
-        Download-And-Run $choice
-        Pause
-    }
-} while ($true)
