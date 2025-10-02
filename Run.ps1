@@ -8,7 +8,6 @@
 # SECTION 1: Settings & Initialization
 # --------------------------------
 $ErrorActionPreference = "Stop"
-
 [Net.ServicePointManager]::SecurityProtocol =
     [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
@@ -198,7 +197,7 @@ function Show-SystemInfo {
 }
 
 # --------------------------------
-# SECTION 6: Main Loop with Instant Keypress & Safety Check
+# SECTION 6: Main Loop with Safe Instant Keypress
 # --------------------------------
 while ($true) {
     Show-Dashboard
@@ -207,14 +206,14 @@ while ($true) {
     $key = [System.Console]::ReadKey($true)
     $selection = $key.KeyChar
 
-    # Only allow digits
-    if ($selection -match '^\d$') {
-        $selInt = [int]$selection
-    } else {
-        Write-Host "`n❌ Invalid input — please press a valid number." -ForegroundColor Yellow
+    # SAFETY CHECK — Only digits allowed
+    if ($selection -notmatch '^\d$') {
+        Write-Host "`n❌ Invalid input — please press a number key." -ForegroundColor Yellow
         Start-Sleep -Seconds 1
         continue
     }
+
+    $selInt = [int]$selection
 
     if ($selInt -eq 0) {
         Write-Host "`nExiting... Goodbye!" -ForegroundColor Green
@@ -228,9 +227,8 @@ while ($true) {
     $appMatch = $apps | Where-Object { $_.Id -eq $selInt }
     if ($null -ne $appMatch) {
         Download-And-Run -id $selInt
-        Start-Sleep -Seconds 1
     } else {
         Write-Host "`n❌ No tool with that ID." -ForegroundColor Yellow
-        Start-Sleep -Seconds 1
     }
+    Start-Sleep -Seconds 1
 }
