@@ -55,4 +55,34 @@ function Download-And-Run($number) {
         }
         Write-Host "Launching $($app.Name)..."
         Start-Process -FilePath $FilePath
-        Write-Host "$
+        Write-Host "$($app.Name) started.`n"
+    }
+    catch {
+        Write-Error "Error with $($app.Name): $_"
+    }
+}
+
+# ==========================
+# Main Loop
+# ==========================
+
+while ($true) {
+    Show-Dashboard
+    $selection = Read-Host "Select a diagnostic tool (0 to exit)"
+    if ($selection -eq '0') {
+        Write-Host "Exiting and closing window..." -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        # Close this PowerShell window
+        $psWindow = Get-Process -Id $PID
+        $psWindow.CloseMainWindow() | Out-Null
+        break
+    }
+    elseif ($selection -match '^[1-8]$') {
+        Download-And-Run -number [int]$selection
+        Start-Sleep -Seconds 2
+    }
+    else {
+        Write-Host "Invalid selection. Please choose a valid number." -ForegroundColor Red
+        Start-Sleep -Seconds 1.5
+    }
+}
