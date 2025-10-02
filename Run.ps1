@@ -62,10 +62,11 @@ while ($true) {
     $selection = Read-Host "Select a diagnostic tool (0 to exit)"
     $selection = $selection.Trim()
     if ($selection -eq '0') {
-        Write-Host "✅ Exiting and closing window..." -ForegroundColor Green
-        Start-Sleep -Seconds 1
-        Stop-Process -Id $PID -Force
-        break
+    
+    Write-Host "✅ Exiting... Goodbye!" -ForegroundColor Green
+    Start-Sleep -Seconds 1
+    exit
+    
     }
     elseif ($selection -match '^\d+$') {
         Download-And-Run -number $selection
