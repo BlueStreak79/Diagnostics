@@ -69,21 +69,29 @@ function Download-And-Run($id) {
 
 function Show-SystemInfo {
     # --- Collect system info ---
-    $comp = Get-CimInstance Win32_ComputerSystem
-    $bios = Get-CimInstance Win32_BIOS
-    $cpu  = Get-CimInstance Win32_Processor
-    $ram  = "{0:N0} GB" -f ($comp.TotalPhysicalMemory / 1GB)
+    $comp  = Get-CimInstance Win32_ComputerSystem
+    $bios  = Get-CimInstance Win32_BIOS
+    $cpu   = Get-CimInstance Win32_Processor
+    $ram   = "{0:N0} GB" -f ($comp.TotalPhysicalMemory / 1GB)
+    $board = Get-CimInstance Win32_BaseBoard
 
-    # Disks
+    # Disks (split into Disk1, Disk2...)
     $disks = Get-PhysicalDisk | Select-Object MediaType, Size
-    $diskInfo = ""
+    $diskList = @()
+    $diskIndex = 1
     foreach ($d in $disks) {
-        $diskInfo += "$($d.MediaType): {0:N0} GB`n" -f ($d.Size / 1GB)
+        $diskList += @{ Name = "Disk$diskIndex ($($d.MediaType))"; Value = ("{0:N0} GB" -f ($d.Size / 1GB)) }
+        $diskIndex++
     }
 
     # GPU(s)
     $gpus = Get-CimInstance Win32_VideoController | Select-Object Name
-    $gpuInfo = ($gpus | ForEach-Object { $_.Name }) -join "`n"
+    $gpuList = @()
+    $gpuIndex = 1
+    foreach ($g in $gpus) {
+        $gpuList += @{ Name = "GPU$gpuIndex"; Value = $g.Name }
+        $gpuIndex++
+    }
 
     # Windows version
     $os = (Get-CimInstance Win32_OperatingSystem).Caption
@@ -91,55 +99,56 @@ function Show-SystemInfo {
     elseif ($os -match "10") { $winver = "Windows 10" }
     else { $winver = $os }
 
-    # Motherboard
-    $board = Get-CimInstance Win32_BaseBoard
-
-    # Prepare text
-    $info = @"
-Serial No    : $($bios.SerialNumber)
-Model        : $($comp.Model)
-Motherboard  : $($board.Manufacturer)
-Processor    : $($cpu.Name)
-GPU(s)       :
-$gpuInfo
-
-RAM          : $ram
-Disks        :
-$diskInfo
-Windows      : $winver
-"@
-
     # --- Create Popup ---
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = "System Information"
+    $form.Size = New-Object System.Drawing.Size(650,420)
     $form.StartPosition = "CenterScreen"
     $form.Topmost = $true
 
-    $txt = New-Object System.Windows.Forms.TextBox
-    $txt.Multiline = $true
-    $txt.ReadOnly = $true
-    $txt.ScrollBars = "Vertical"
-    $txt.Font = 'Consolas,10'
-    $txt.Text = $info
-    $txt.Dock = "Fill"
+    # Create ListView
+    $lv = New-Object System.Windows.Forms.ListView
+    $lv.View = 'Details'
+    $lv.FullRowSelect = $true
+    $lv.GridLines = $true
+    $lv.Dock = "Fill"
+    $lv.Font = 'Segoe UI,10'
+    $lv.Columns.Add("Property",180) | Out-Null
+    $lv.Columns.Add("Value",430)   | Out-Null
 
+    # Helper: add row
+    function Add-Row($name,$value) {
+        $item = New-Object System.Windows.Forms.ListViewItem($name)
+        $item.SubItems.Add($value) | Out-Null
+        $lv.Items.Add($item) | Out-Null
+    }
+
+    # Add rows
+    Add-Row "Serial Number"  $bios.SerialNumber
+    Add-Row "Model"          $comp.Model
+    Add-Row "Motherboard"    $board.Manufacturer
+    Add-Row "Processor"      $cpu.Name
+    foreach ($g in $gpuList) { Add-Row $g.Name $g.Value }
+    Add-Row "RAM"            $ram
+    foreach ($d in $diskList) { Add-Row $d.Name $d.Value }
+    Add-Row "Windows"        $winver
+
+    # Button (Copy Info)
     $btn = New-Object System.Windows.Forms.Button
     $btn.Text = "Copy Info"
     $btn.Dock = "Bottom"
     $btn.Add_Click({
-        [System.Windows.Forms.Clipboard]::SetText($info)
+        $copyText = ($lv.Items | ForEach-Object {
+            "$($_.Text) : $($_.SubItems[1].Text)"
+        }) -join "`r`n"
+        [System.Windows.Forms.Clipboard]::SetText($copyText)
         [System.Windows.Forms.MessageBox]::Show("System info copied to clipboard!","Copied")
     })
 
-    # Dynamically adjust size based on content length
-    $lines = ($info -split "`n").Count
-    $height = [Math]::Min(600, 120 + ($lines * 18)) # max height 600px
-    $form.Size = New-Object System.Drawing.Size(500,$height)
-
-    $form.Controls.Add($txt)
+    $form.Controls.Add($lv)
     $form.Controls.Add($btn)
     $form.ShowDialog()
 }
