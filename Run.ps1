@@ -69,6 +69,7 @@ function Download-And-Run($number) {
 while ($true) {
     Show-Dashboard
     $selection = Read-Host "Select a diagnostic tool (0 to exit)"
+    $selection = $selection.Trim()
     if ($selection -eq '0') {
         Write-Host "Exiting and closing window..." -ForegroundColor Green
         Start-Sleep -Seconds 1
