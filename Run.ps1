@@ -28,12 +28,15 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
+    # Ensure numeric keys sorted
     $keys = $apps.Keys | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_}
+
     foreach ($k in $keys) {
         Write-Host "[$k] $($apps[$k].Name)"
     }
 
-    if (-not $apps.ContainsKey("9")) {
+    # Add System Information only if not in JSON tools
+    if (-not ($apps.Keys -contains "9")) {
         Write-Host "[9] System Information"
     }
 
@@ -148,8 +151,6 @@ function Download-And-Run($number) {
 # ==============================
 # Main Loop (One-Key Input)
 # ==============================
-[System.Console]::TreatControlCAsInput = $true
-
 while ($true) {
     Show-Dashboard
     Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
