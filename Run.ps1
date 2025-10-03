@@ -28,9 +28,8 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    # Print tools dynamically from JSON
-    foreach ($k in ($apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_.Name})) {
-        Write-Host "[$($k.Name)] $($apps.($k.Name).Name)"
+    foreach ($k in ($apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_})) {
+        Write-Host "[$k] $($apps.$k.Name)"
     }
 
     Write-Host "[9] System Information"
@@ -60,7 +59,6 @@ function Show-SystemInfo {
         @{Property="Motherboard"; Value=(Get-CimInstance Win32_BaseBoard).Manufacturer}
     )
 
-    # Build WPF window
     $window = New-Object System.Windows.Window
     $window.Title = "System Information"
     $window.SizeToContent = "WidthAndHeight"
@@ -75,7 +73,6 @@ function Show-SystemInfo {
     $grid.ShowGridLines = $false
     $grid.HorizontalAlignment = "Left"
 
-    # Define two columns
     $col1 = New-Object System.Windows.Controls.ColumnDefinition
     $col1.Width = "150"
     $col2 = New-Object System.Windows.Controls.ColumnDefinition
@@ -83,7 +80,6 @@ function Show-SystemInfo {
     $grid.ColumnDefinitions.Add($col1)
     $grid.ColumnDefinitions.Add($col2)
 
-    # Add rows dynamically
     for ($i=0; $i -lt $info.Count; $i++) {
         $row = New-Object System.Windows.Controls.RowDefinition
         $row.Height = "Auto"
@@ -107,7 +103,6 @@ function Show-SystemInfo {
 
     $stack.Children.Add($grid)
 
-    # OK Button
     $btn = New-Object System.Windows.Controls.Button
     $btn.Content = "OK"
     $btn.Width = 80
@@ -149,7 +144,7 @@ function Download-And-Run($number) {
 # ==============================
 # Main Loop (One-Key Input)
 # ==============================
-[void][System.Console]::TreatControlCAsInput = $true
+[System.Console]::TreatControlCAsInput = $true
 
 while ($true) {
     Show-Dashboard
