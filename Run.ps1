@@ -28,20 +28,17 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    # Filter numeric keys and sort
-    $keys = $apps.PSObject.Properties.Name |
-        Where-Object { $_ -match '^\d+$' } |
-        Sort-Object { [int]$_ }
-
-    foreach ($k in $keys) {
-        Write-Host "[$k] $($apps.$k.Name)"
+    if ($apps -and $apps.PSObject.Properties.Count -gt 0) {
+        $keys = $apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object { [int]$_ }
+        foreach ($k in $keys) {
+            Write-Host "[$k] $($apps.$k.Name)"
+        }
+    }
+    else {
+        Write-Host "⚠️ No tools loaded from JSON." -ForegroundColor Yellow
     }
 
-    # Add System Information as option 9
-    if (-not ($keys -contains "9")) {
-        Write-Host "[9] System Information"
-    }
-
+    Write-Host "[9] System Information"
     Write-Host "[0] Exit"
 }
 
