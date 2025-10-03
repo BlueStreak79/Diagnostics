@@ -1,10 +1,34 @@
 {
-  "1": { "Name": "AquaKeyTest", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/AquaKeyTest.exe" },
-  "2": { "Name": "BatteryInfoView", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/BatteryInfoView.exe" },
-  "3": { "Name": "Camera", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/Camera.exe" },
-  "4": { "Name": "lusrmgr", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/lusrmgr.exe" },
-  "5": { "Name": "MemTest64", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/MemTest64.exe" },
-  "6": { "Name": "LCDtest", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/LCDtest.exe" },
-  "7": { "Name": "OemKey", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/OemKey.exe" },
-  "8": { "Name": "ShowKeyPlus", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/ShowKeyPlus.exe" },
+  "1": {
+    "Name": "AquaKeyTest",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/AquaKeyTest.exe"
+  },
+  "2": {
+    "Name": "BatteryInfoView",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/BatteryInfoView.exe"
+  },
+  "3": {
+    "Name": "Camera",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/Camera.exe"
+  },
+  "4": {
+    "Name": "lusrmgr",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/lusrmgr.exe"
+  },
+  "5": {
+    "Name": "MemTest64",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/MemTest64.exe"
+  },
+  "6": {
+    "Name": "LCDtest",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/LCDtest.exe"
+  },
+  "7": {
+    "Name": "OemKey",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/OemKey.exe"
+  },
+  "8": {
+    "Name": "ShowKeyPlus",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/ShowKeyPlus.exe"
+  }
 }
