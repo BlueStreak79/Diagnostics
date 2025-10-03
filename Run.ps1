@@ -32,7 +32,10 @@ function Show-Dashboard {
         Write-Host "[$k] $($apps.$k.Name)"
     }
 
-    Write-Host "[9] System Information"
+    if (-not $apps.PSObject.Properties.Name.Contains("9")) {
+        Write-Host "[9] System Information"
+    }
+
     Write-Host "[0] Exit"
 }
 
@@ -149,7 +152,7 @@ function Download-And-Run($number) {
 while ($true) {
     Show-Dashboard
     Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
-    
+
     $key = [System.Console]::ReadKey($true).KeyChar
     if ($key -eq '0') {
         Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green
