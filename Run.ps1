@@ -1,126 +1,92 @@
-# ======================================================================
-#  Diagnostics Dashboard Script
-#  Author: Mustafa
-#  Description: JSON-driven tool launcher + System Info popup
-# ======================================================================
+# ==========================
+# Blue's Diagnostics Dashboard
+# JSON-driven version
+# ==========================
 
-# -------------------------------
-# Config: JSON Tools File
-# -------------------------------
-$toolsUrl = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/tools.json"
+$ErrorActionPreference = "Stop"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-# -------------------------------
-# Load JSON Tools List
-# -------------------------------
+# Load app list from JSON
+$toolsUrl = "https://github.com/BlueStreak79/Diagnostics/raw/main/tools.json"
 try {
     $apps = Invoke-RestMethod -Uri $toolsUrl -UseBasicParsing
 } catch {
-    Write-Host "❌ Failed to load tools list from $toolsUrl" -ForegroundColor Red
+    Write-Host "❌ Failed to load tools list from GitHub." -ForegroundColor Red
     exit
 }
 
-# -------------------------------
-# Function: Show Dashboard
-# -------------------------------
+# ==========================
+# Functions
+# ==========================
+
 function Show-Dashboard {
     Clear-Host
-    Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host "          🔧 Diagnostics Dashboard       " -ForegroundColor Yellow
-    Write-Host "========================================" -ForegroundColor Cyan
-    foreach ($app in $apps) {
-        Write-Host ("[{0}] {1}" -f $app.Id, $app.Name) -ForegroundColor Green
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host "   BLUE'S DIAGNOSTICS DASHBOARD"
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host "`nThese diagnostics are created by Blue..."
+    Write-Host "Unlocking system secrets with just one click!`n"
+
+    foreach ($k in ($apps.PSObject.Properties.Name | Sort-Object {[int]$_})) {
+        Write-Host "$k. $($apps.$k.Name)"
     }
-    Write-Host "[9] System Information" -ForegroundColor Cyan
-    Write-Host "[0] Exit" -ForegroundColor Red
+    Write-Host "0. Exit (cleanup)"
 }
 
-# -------------------------------
-# Function: Download & Run Tool
-# -------------------------------
-function Download-And-Run {
-    param([int]$id)
-
-    $app = $apps | Where-Object { $_.Id -eq $id }
-    if ($null -eq $app) {
-        Write-Host "`n❌ Invalid tool ID." -ForegroundColor Yellow
-        return
-    }
-
-    $tempFile = Join-Path $env:TEMP ($app.Name + ".exe")
-
-    Write-Host "`n⬇️ Downloading $($app.Name)..." -ForegroundColor Cyan
+function Download-And-Run($number) {
     try {
-        Invoke-WebRequest -Uri $app.Url -OutFile $tempFile -UseBasicParsing
-        Write-Host "✔ Download complete. Launching..." -ForegroundColor Green
-        Start-Process $tempFile
+        $app = $apps.$number
+        if (-not $app) {
+            Write-Host "Invalid selection." -ForegroundColor Red
+            return
+        }
+
+        # Detect extension (.exe or .ps1)
+        $ext = [System.IO.Path]::GetExtension($app.Url)
+        if (-not $ext) { $ext = ".exe" }
+
+        $FilePath = Join-Path $env:TEMP "$($app.Name)$ext"
+
+        # Download if not already present
+        if (-not (Test-Path $FilePath)) {
+            Write-Host "⬇️ Downloading $($app.Name)..."
+            Invoke-WebRequest -Uri $app.Url -OutFile $FilePath -UseBasicParsing
+        } else {
+            Write-Host "✔️ $($app.Name) already in TEMP."
+        }
+
+        Write-Host "🚀 Launching $($app.Name)..."
+        if ($ext -eq ".ps1") {
+            Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$FilePath`""
+        } else {
+            Start-Process -FilePath $FilePath
+        }
     }
     catch {
-        Write-Host "❌ Failed to download or launch $($app.Name)" -ForegroundColor Red
+        Write-Error "Error with $($app.Name): $_"
     }
 }
 
-# -------------------------------
-# Function: Show System Info
-# -------------------------------
-function Show-SystemInfo {
-    $sys = Get-CimInstance Win32_ComputerSystem
-    $cpu = Get-CimInstance Win32_Processor
-    $ramGB = [math]::Round($sys.TotalPhysicalMemory / 1GB, 2)
-    $gpu = (Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) -join ", "
-    $os = Get-CimInstance Win32_OperatingSystem
-    $disk = (Get-PhysicalDisk | ForEach-Object { "$($_.FriendlyName) $([math]::Round($_.Size/1GB))GB" }) -join ", "
-    $mb = (Get-CimInstance Win32_BaseBoard).Manufacturer
-    $winVersion = if ($os.Caption -match "11") { "Windows 11" } else { "Windows 10" }
-
-    $info = @"
-System Information
-------------------------------
-Model       : $($sys.Model)
-Serial No   : $($sys.Name)
-Motherboard : $mb
-Processor   : $($cpu.Name)
-Memory      : $ramGB GB
-GPU         : $gpu
-Disk(s)     : $disk
-OS Version  : $winVersion
-"@
-
-    [System.Windows.Forms.MessageBox]::Show($info, "System Info", 'OK', 'Information')
-}
-
-# Enable WinForms
-Add-Type -AssemblyName System.Windows.Forms
-
-# -------------------------------
+# ==========================
 # Main Loop
-# -------------------------------
+# ==========================
+
 while ($true) {
     Show-Dashboard
-    Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
+    $selection = Read-Host "Select a diagnostic tool (0 to exit)"
+    $selection = $selection.Trim()
 
-    $key = [System.Console]::ReadKey($true)
-    $selection = $key.KeyChar
-
-    # Only allow single digit 0–9
-    if ($selection -notmatch '^\d$') {
-        Write-Host "`n❌ Invalid input — press 0–9 only." -ForegroundColor Yellow
+    if ($selection -eq '0') {
+        Write-Host "✅ Exiting... Goodbye!" -ForegroundColor Green
         Start-Sleep -Seconds 1
-        continue
+        exit
     }
-
-    $selInt = [int]$selection
-
-    switch ($selInt) {
-        0 {
-            Write-Host "`nExiting... Goodbye!" -ForegroundColor Green
-            break
-        }
-        9 {
-            Show-SystemInfo
-        }
-        default {
-            Download-And-Run -id $selInt
-        }
+    elseif ($selection -match '^\d+$') {
+        Download-And-Run -number $selection
+        Start-Sleep -Seconds 2
     }
-    Start-Sleep -Seconds 1
+    else {
+        Write-Host "Invalid selection. Please choose a valid number." -ForegroundColor Red
+        Start-Sleep -Seconds 1.5
+    }
 }
