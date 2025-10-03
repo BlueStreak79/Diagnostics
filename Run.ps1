@@ -28,15 +28,14 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    # Ensure numeric keys sorted
     $keys = $apps.Keys | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_}
 
     foreach ($k in $keys) {
         Write-Host "[$k] $($apps[$k].Name)"
     }
 
-    # Add System Information only if not in JSON tools
-    if (-not ($apps.Keys -contains "9")) {
+    # Only add System Information if key 9 does not exist
+    if (-not $apps.Keys.Contains("9")) {
         Write-Host "[9] System Information"
     }
 
