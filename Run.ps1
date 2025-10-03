@@ -1,136 +1,126 @@
-# ============================================
-# Blue's Diagnostics Dashboard
-# Rewritten & Clean Version
-# ============================================
+# ======================================================================
+#  Diagnostics Dashboard Script
+#  Author: Mustafa
+#  Description: JSON-driven tool launcher + System Info popup
+# ======================================================================
 
-$ErrorActionPreference = "Stop"
-[Net.ServicePointManager]::SecurityProtocol =
-    [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+# -------------------------------
+# Config: JSON Tools File
+# -------------------------------
+$toolsUrl = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/tools.json"
 
-# --------------------------------------------
-# SECTION 1: Default App List (Fallback)
-# --------------------------------------------
-$appsFallback = @(
-    @{ Id = 1; Name = "AquaKeyTest";     Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/AquaKeyTest.exe" },
-    @{ Id = 2; Name = "BatteryInfoView"; Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/BatteryInfoView.exe" },
-    @{ Id = 3; Name = "Camera";          Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/Camera.exe" },
-    @{ Id = 4; Name = "lusrmgr";         Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/lusrmgr.exe" },
-    @{ Id = 5; Name = "MemTest64";       Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/MemTest64.exe" },
-    @{ Id = 6; Name = "LCDtest";         Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/LCDtest.exe" },
-    @{ Id = 7; Name = "OemKey";          Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/OemKey.exe" },
-    @{ Id = 8; Name = "ShowKeyPlus";     Url = "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/ShowKeyPlus.exe" }
-) | ForEach-Object { [PSCustomObject]$_ }
-
-# --------------------------------------------
-# SECTION 2: Load App List from JSON (or fallback)
-# --------------------------------------------
-function Get-AppList {
-    $jsonUrl = "https://raw.githubusercontent.com/BlueStreak79/Diagnostics/main/tools.json"
-    try {
-        $raw = Invoke-RestMethod -Uri $jsonUrl -UseBasicParsing -ErrorAction Stop
-    } catch {
-        Write-Host "⚠️ Could not load tools.json. Using fallback list." -ForegroundColor Yellow
-        return $appsFallback
-    }
-
-    if ($raw -is [System.Array]) {
-        return $raw | ForEach-Object {
-            [PSCustomObject]@{ Id = $_.Id; Name = $_.Name; Url = $_.Url }
-        }
-    }
-
-    if ($raw.PSObject.Properties.Name -match '^\d+$') {
-        return $raw.PSObject.Properties | ForEach-Object {
-            [PSCustomObject]@{ Id = [int]$_.Name; Name = $_.Value.Name; Url = $_.Value.Url }
-        }
-    }
-
-    return $appsFallback
+# -------------------------------
+# Load JSON Tools List
+# -------------------------------
+try {
+    $apps = Invoke-RestMethod -Uri $toolsUrl -UseBasicParsing
+} catch {
+    Write-Host "❌ Failed to load tools list from $toolsUrl" -ForegroundColor Red
+    exit
 }
 
-$apps = Get-AppList
-
-# --------------------------------------------
-# SECTION 3: Dashboard UI
-# --------------------------------------------
+# -------------------------------
+# Function: Show Dashboard
+# -------------------------------
 function Show-Dashboard {
     Clear-Host
-    Write-Host "====================================" -ForegroundColor Cyan
-    Write-Host "   BLUE'S DIAGNOSTICS DASHBOARD"
-    Write-Host "====================================" -ForegroundColor Cyan
-    Write-Host "`nUnlocking system secrets with just one click!`n"
-
-    foreach ($a in $apps | Sort-Object Id) {
-        Write-Host ("{0}. {1}" -f $a.Id, $a.Name)
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "          🔧 Diagnostics Dashboard       " -ForegroundColor Yellow
+    Write-Host "========================================" -ForegroundColor Cyan
+    foreach ($app in $apps) {
+        Write-Host ("[{0}] {1}" -f $app.Id, $app.Name) -ForegroundColor Green
     }
-    Write-Host "9. System Information"
-    Write-Host "0. Exit"
+    Write-Host "[9] System Information" -ForegroundColor Cyan
+    Write-Host "[0] Exit" -ForegroundColor Red
 }
 
-# --------------------------------------------
-# SECTION 4: Download & Run App
-# --------------------------------------------
-function Download-And-Run($id) {
+# -------------------------------
+# Function: Download & Run Tool
+# -------------------------------
+function Download-And-Run {
+    param([int]$id)
+
     $app = $apps | Where-Object { $_.Id -eq $id }
-    if (-not $app) { return }
-
-    $path = Join-Path $env:TEMP "$($app.Name).exe"
-
-    if (-not (Test-Path $path)) {
-        Write-Host "⬇️ Downloading $($app.Name)..."
-        Invoke-WebRequest -Uri $app.Url -OutFile $path -UseBasicParsing -ErrorAction Stop
-        Write-Host "✔️ Download completed."
+    if ($null -eq $app) {
+        Write-Host "`n❌ Invalid tool ID." -ForegroundColor Yellow
+        return
     }
 
-    Write-Host "🚀 Launching $($app.Name)..."
-    Start-Process -FilePath $path
+    $tempFile = Join-Path $env:TEMP ($app.Name + ".exe")
+
+    Write-Host "`n⬇️ Downloading $($app.Name)..." -ForegroundColor Cyan
+    try {
+        Invoke-WebRequest -Uri $app.Url -OutFile $tempFile -UseBasicParsing
+        Write-Host "✔ Download complete. Launching..." -ForegroundColor Green
+        Start-Process $tempFile
+    }
+    catch {
+        Write-Host "❌ Failed to download or launch $($app.Name)" -ForegroundColor Red
+    }
 }
 
-# --------------------------------------------
-# SECTION 5: System Information Popup
-# --------------------------------------------
+# -------------------------------
+# Function: Show System Info
+# -------------------------------
 function Show-SystemInfo {
-    $comp  = Get-CimInstance Win32_ComputerSystem
-    $bios  = Get-CimInstance Win32_BIOS
-    $cpu   = Get-CimInstance Win32_Processor | Select-Object -First 1
-    $ram   = "{0:N0} GB" -f ($comp.TotalPhysicalMemory / 1GB)
-    $board = Get-CimInstance Win32_BaseBoard
-    $os    = (Get-CimInstance Win32_OperatingSystem).Caption
-    $winver = if ($os -match "11") { "Windows 11" } elseif ($os -match "10") { "Windows 10" } else { $os }
+    $sys = Get-CimInstance Win32_ComputerSystem
+    $cpu = Get-CimInstance Win32_Processor
+    $ramGB = [math]::Round($sys.TotalPhysicalMemory / 1GB, 2)
+    $gpu = (Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name) -join ", "
+    $os = Get-CimInstance Win32_OperatingSystem
+    $disk = (Get-PhysicalDisk | ForEach-Object { "$($_.FriendlyName) $([math]::Round($_.Size/1GB))GB" }) -join ", "
+    $mb = (Get-CimInstance Win32_BaseBoard).Manufacturer
+    $winVersion = if ($os.Caption -match "11") { "Windows 11" } else { "Windows 10" }
 
-    $disks = Get-CimInstance Win32_DiskDrive | ForEach-Object {
-        [PSCustomObject]@{ Name = $_.Model; Size = "{0:N0} GB" -f ($_.Size / 1GB) }
+    $info = @"
+System Information
+------------------------------
+Model       : $($sys.Model)
+Serial No   : $($sys.Name)
+Motherboard : $mb
+Processor   : $($cpu.Name)
+Memory      : $ramGB GB
+GPU         : $gpu
+Disk(s)     : $disk
+OS Version  : $winVersion
+"@
+
+    [System.Windows.Forms.MessageBox]::Show($info, "System Info", 'OK', 'Information')
+}
+
+# Enable WinForms
+Add-Type -AssemblyName System.Windows.Forms
+
+# -------------------------------
+# Main Loop
+# -------------------------------
+while ($true) {
+    Show-Dashboard
+    Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
+
+    $key = [System.Console]::ReadKey($true)
+    $selection = $key.KeyChar
+
+    # Only allow single digit 0–9
+    if ($selection -notmatch '^\d$') {
+        Write-Host "`n❌ Invalid input — press 0–9 only." -ForegroundColor Yellow
+        Start-Sleep -Seconds 1
+        continue
     }
 
-    $gpus = Get-CimInstance Win32_VideoController | Select-Object Name
+    $selInt = [int]$selection
 
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-
-    $form = New-Object Windows.Forms.Form
-    $form.Text = "System Information"
-    $form.Size = New-Object Drawing.Size(700,480)
-    $form.StartPosition = "CenterScreen"
-    $form.TopMost = $true
-
-    $lv = New-Object Windows.Forms.ListView
-    $lv.View = 'Details'
-    $lv.FullRowSelect = $true
-    $lv.GridLines = $true
-    $lv.Dock = "Fill"
-    $lv.Font = 'Segoe UI,10'
-    $lv.Columns.Add("Property",220) | Out-Null
-    $lv.Columns.Add("Value",440)   | Out-Null
-
-    function Add-Row($name,$value) {
-        $item = New-Object Windows.Forms.ListViewItem($name)
-        $item.SubItems.Add([string]$value) | Out-Null
-        $lv.Items.Add($item) | Out-Null
+    switch ($selInt) {
+        0 {
+            Write-Host "`nExiting... Goodbye!" -ForegroundColor Green
+            break
+        }
+        9 {
+            Show-SystemInfo
+        }
+        default {
+            Download-And-Run -id $selInt
+        }
     }
-
-    Add-Row "Serial Number"  $bios.SerialNumber
-    Add-Row "Model"          $comp.Model
-    Add-Row "Motherboard"    $board.Manufacturer
-    Add-Row "Processor"      $cpu.Name
-    foreach ($g in $gpus) { Add-Row "GPU" $g.Name }
-    Add-R
+    Start-Sleep -Seconds 1
+}
