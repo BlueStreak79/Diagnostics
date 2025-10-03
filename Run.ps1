@@ -28,14 +28,11 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    if ($apps -and $apps.PSObject.Properties.Count -gt 0) {
-        $keys = $apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object { [int]$_ }
-        foreach ($k in $keys) {
-            Write-Host "[$k] $($apps.$k.Name)"
-        }
-    }
-    else {
-        Write-Host "⚠️ No tools loaded from JSON." -ForegroundColor Yellow
+    # Sort numeric keys
+    $keys = $apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_}
+
+    foreach ($k in $keys) {
+        Write-Host "[$k] $($apps.$k.Name)"
     }
 
     Write-Host "[9] System Information"
@@ -43,7 +40,7 @@ function Show-Dashboard {
 }
 
 # ==============================
-# System Info (GUI Popup)
+# System Info (Polished GUI Popup)
 # ==============================
 function Show-SystemInfo {
     Add-Type -AssemblyName PresentationFramework
@@ -70,31 +67,28 @@ function Show-SystemInfo {
     $window.SizeToContent = "WidthAndHeight"
     $window.WindowStartupLocation = "CenterScreen"
     $window.ResizeMode = "NoResize"
+    $window.Width = 500
 
     $stack = New-Object System.Windows.Controls.StackPanel
     $stack.Margin = "10"
+    $stack.Orientation = "Vertical"
 
     $grid = New-Object System.Windows.Controls.Grid
     $grid.Margin = "0,0,0,10"
-    $grid.ShowGridLines = $false
-    $grid.HorizontalAlignment = "Left"
+    $grid.HorizontalAlignment = "Stretch"
 
-    $col1 = New-Object System.Windows.Controls.ColumnDefinition
-    $col1.Width = "150"
-    $col2 = New-Object System.Windows.Controls.ColumnDefinition
-    $col2.Width = "300"
-    $grid.ColumnDefinitions.Add($col1)
-    $grid.ColumnDefinitions.Add($col2)
+    $grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition))
+    $grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition))
 
     for ($i=0; $i -lt $info.Count; $i++) {
-        $row = New-Object System.Windows.Controls.RowDefinition
-        $row.Height = "Auto"
-        $grid.RowDefinitions.Add($row)
+        $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition))
 
         $propText = New-Object System.Windows.Controls.TextBlock
         $propText.Text = $info[$i].Property
         $propText.Margin = "5"
         $propText.FontWeight = "Bold"
+        $propText.FontSize = 14
+        $propText.VerticalAlignment = "Center"
         [System.Windows.Controls.Grid]::SetRow($propText, $i)
         [System.Windows.Controls.Grid]::SetColumn($propText, 0)
         $grid.Children.Add($propText)
@@ -102,6 +96,8 @@ function Show-SystemInfo {
         $valText = New-Object System.Windows.Controls.TextBlock
         $valText.Text = $info[$i].Value
         $valText.Margin = "5"
+        $valText.FontSize = 14
+        $valText.VerticalAlignment = "Center"
         [System.Windows.Controls.Grid]::SetRow($valText, $i)
         [System.Windows.Controls.Grid]::SetColumn($valText, 1)
         $grid.Children.Add($valText)
@@ -111,8 +107,11 @@ function Show-SystemInfo {
 
     $btn = New-Object System.Windows.Controls.Button
     $btn.Content = "OK"
-    $btn.Width = 80
+    $btn.Width = 100
+    $btn.Height = 30
+    $btn.Margin = "0,10,0,0"
     $btn.HorizontalAlignment = "Center"
+    $btn.FontWeight = "Bold"
     $btn.Add_Click({ $window.Close() })
     $stack.Children.Add($btn)
 
