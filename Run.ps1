@@ -28,11 +28,12 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    foreach ($k in ($apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_})) {
-        Write-Host "[$k] $($apps.$k.Name)"
+    $keys = $apps.Keys | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_}
+    foreach ($k in $keys) {
+        Write-Host "[$k] $($apps[$k].Name)"
     }
 
-    if (-not $apps.PSObject.Properties.Name.Contains("9")) {
+    if (-not $apps.ContainsKey("9")) {
         Write-Host "[9] System Information"
     }
 
