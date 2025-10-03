@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # ==============================
-# Load app list from JSON
+# Load tool list from JSON
 # ==============================
 $toolsUrl = "https://github.com/BlueStreak79/Diagnostics/raw/main/tools.json"
 try {
@@ -18,7 +18,7 @@ try {
 }
 
 # ==============================
-# Show Dashboard
+# Function: Show Dashboard Menu
 # ==============================
 function Show-Dashboard {
     Clear-Host
@@ -34,16 +34,14 @@ function Show-Dashboard {
         Write-Host "[$k] $($apps[$k].Name)"
     }
 
-    # Only add System Information if key 9 does not exist
-    if (-not $apps.Keys.Contains("9")) {
+    if (-not ($apps.Keys -contains "9")) {
         Write-Host "[9] System Information"
     }
-
     Write-Host "[0] Exit"
 }
 
 # ==============================
-# System Info (GUI Popup)
+# Function: Show System Info GUI
 # ==============================
 function Show-SystemInfo {
     Add-Type -AssemblyName PresentationFramework
@@ -121,7 +119,7 @@ function Show-SystemInfo {
 }
 
 # ==============================
-# Download & Run
+# Function: Download & Run Tool
 # ==============================
 function Download-And-Run($number) {
     try {
@@ -155,6 +153,7 @@ while ($true) {
     Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
 
     $key = [System.Console]::ReadKey($true).KeyChar
+
     if ($key -eq '0') {
         Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green
         Start-Sleep -Seconds 1
