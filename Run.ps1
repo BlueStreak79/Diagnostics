@@ -28,17 +28,11 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    $keys = $apps.Keys | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_}
-
-    foreach ($k in $keys) {
-        Write-Host "[$k] $($apps[$k].Name)"
+    foreach ($k in ($apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_})) {
+        Write-Host "[$k] $($apps.$k.Name)"
     }
 
-    # Only add System Information if key 9 does not exist
-    if (-not $apps.Keys.Contains("9")) {
-        Write-Host "[9] System Information"
-    }
-
+    Write-Host "[9] System Information"
     Write-Host "[0] Exit"
 }
 
@@ -150,10 +144,12 @@ function Download-And-Run($number) {
 # ==============================
 # Main Loop (One-Key Input)
 # ==============================
+[System.Console]::TreatControlCAsInput = $true
+
 while ($true) {
     Show-Dashboard
     Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
-
+    
     $key = [System.Console]::ReadKey($true).KeyChar
     if ($key -eq '0') {
         Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green
