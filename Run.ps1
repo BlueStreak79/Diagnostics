@@ -149,7 +149,7 @@ function Download-And-Run($number) {
 while ($true) {
     Show-Dashboard
     Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
-
+    
     $key = [System.Console]::ReadKey($true).KeyChar
     if ($key -eq '0') {
         Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green
