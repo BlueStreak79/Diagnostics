@@ -27,10 +27,12 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    # Show only numeric keys (ignore Length/Count/etc.)
-    foreach ($k in ($apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_})) {
+    # ✅ only numeric keys (ignore Length, Count, etc.)
+    $keys = $apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_}
+    foreach ($k in $keys) {
         Write-Host "$k. $($apps.$k.Name)"
     }
+
     Write-Host "0. Exit (cleanup)"
 }
 
