@@ -156,7 +156,7 @@ function Download-And-Run($key) {
             Write-Host "🚀 Launching executable $name..."
             Start-Process -FilePath $FilePath
         } else {
-            Write-Host "🌐 Opening link in browser..."
+            Write-Host "💀 Launching MassGrave..."
             Start-Process irm $url | iex
         }
     }
