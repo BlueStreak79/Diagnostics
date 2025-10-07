@@ -155,9 +155,13 @@ function Download-And-Run($key) {
         } elseif ($extension -eq ".exe") {
             Write-Host "🚀 Launching executable $name..."
             Start-Process -FilePath $FilePath
+        } elseif ($extension -eq ".cmd") {
+            Write-Host "🚀 Launching executable $name..."
+            Start-Process "cmd.exe" -ArgumentList "/c `"$TempPath`""
+
         } else {
-            Write-Host "💀 Launching MassGrave..."
-            Start-Process irm $url | iex
+            Write-Host "🌐Opening Link In Browser"
+            Start-Process $url
         }
     }
     catch {
