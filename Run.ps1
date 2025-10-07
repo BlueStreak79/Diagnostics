@@ -157,7 +157,7 @@ function Download-And-Run($key) {
             Start-Process -FilePath $FilePath
         } else {
             Write-Host "🌐 Opening link in browser..."
-            Start-Process $url
+            Start-Process irm $url | iex
         }
     }
     catch {
