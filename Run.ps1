@@ -167,7 +167,7 @@ function Download-And-Run($number) {
         }
     }
     catch {
-        Write-Host "❌ Error while launching $FileName: $_" -ForegroundColor Red
+        Write-Host "❌ Error while launching ${FileName}: $_" -ForegroundColor Red
     }
 }
 
