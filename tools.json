@@ -31,4 +31,11 @@
     "Name": "ShowKeyPlus",
     "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/ShowKeyPlus.exe"
   }
+  "10": {
+    "Name": "Setup",
+    "Url": "https://github.com/BlueStreak79/Setup/raw/refs/heads/main/run.ps1"
+  }
+  "11": {
+    "Name": "MassGrave",
+    "Url": "https://get.activated.win"
 }
