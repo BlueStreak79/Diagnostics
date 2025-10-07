@@ -8,5 +8,5 @@
   "7": { "Name": "OemKey", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/OemKey.exe" },
   "8": { "Name": "ShowKeyPlus", "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/ShowKeyPlus.exe" },
   "a": { "Name": "Setup", "Url": "https://github.com/BlueStreak79/Setup/raw/refs/heads/main/run.ps1", "Type": "ps1" },
-  "b": { "Name": "MassGrave", "Url": "https://get.activated.win", "Type": "ps1" }
+  "b": { "Name": "MassGrave", "Url": https://github.com/massgravel/Microsoft-Activation-Scripts/raw/refs/heads/master/MAS/All-In-One-Version-KL/MAS_AIO.cmd", "Type": "cmd" }
 }
