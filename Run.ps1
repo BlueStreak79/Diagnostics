@@ -1,15 +1,9 @@
 # ====================================
-#   BLUE'S DIAGNOSTICS DASHBOARD-1
+#   BLUE'S DIAGNOSTICS DASHBOARD
 # ====================================
 
-Clear-Host
-Write-Host "===================================="
-Write-Host "   BLUE'S DIAGNOSTICS DASHBOARD"
-Write-Host "===================================="
-Write-Host ""
-Write-Host "These diagnostics are created by Blue..."
-Write-Host "Unlocking system secrets with just one click!"
-Write-Host ""
+$ErrorActionPreference = "SilentlyContinue"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # ---------------------------
 # Load Tools from JSON
@@ -55,57 +49,82 @@ function Download-And-Run($tool) {
 }
 
 # ---------------------------
-# Show System Info Popup
+# System Info Popup
 # ---------------------------
 function Show-SystemInfo {
     Add-Type -AssemblyName PresentationFramework
-    $sysinfo = @(
-        "System: $env:COMPUTERNAME",
-        "User: $env:USERNAME",
-        "Windows: $((Get-CimInstance Win32_OperatingSystem).Caption)",
-        "Version: $((Get-CimInstance Win32_OperatingSystem).Version)",
-        "Architecture: $env:PROCESSOR_ARCHITECTURE",
-        "CPU: $((Get-CimInstance Win32_Processor).Name)",
-        "RAM: $([math]::Round((Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB,2)) GB"
-    ) -join "`n"
 
-    [System.Windows.MessageBox]::Show($sysinfo, "💻 System Information", "OK", "Info")
+    $os = Get-CimInstance Win32_OperatingSystem
+    $cpu = Get-CimInstance Win32_Processor
+    $board = Get-CimInstance Win32_BaseBoard
+    $gpu = (Get-CimInstance Win32_VideoController | Select-Object -First 1)
+    $bios = Get-CimInstance Win32_BIOS
+    $disks = Get-PhysicalDisk | ForEach-Object { "$($_.FriendlyName) ($([math]::Round($_.Size/1GB)) GB)" }
+
+    $info = @"
+💻 SYSTEM INFORMATION
+────────────────────────────
+Computer Name: $env:COMPUTERNAME
+Model: $((Get-CimInstance Win32_ComputerSystem).Model)
+Serial Number: $($bios.SerialNumber)
+Motherboard: $($board.Manufacturer) - $($board.Product)
+CPU: $($cpu.Name)
+RAM: $([math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)) GB
+Storage: $($disks -join ", ")
+GPU: $($gpu.Name)
+OS: $($os.Caption)
+Version: $($os.Version)
+Architecture: $env:PROCESSOR_ARCHITECTURE
+"@
+
+    [System.Windows.MessageBox]::Show($info, "System Information", "OK", "Info") | Out-Null
 }
 
 # ---------------------------
-# Menu Loop
+# Menu Display
 # ---------------------------
 function Show-Menu {
-    while ($true) {
-        Write-Host ""
-        Write-Host "===================================="
-        Write-Host "Available Tools:"
-        Write-Host "===================================="
+    Clear-Host
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host "   BLUE'S DIAGNOSTICS DASHBOARD"
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "These diagnostics are created by Blue..."
+    Write-Host "Unlocking system secrets with just one click!"
+    Write-Host ""
 
-        # Sort keys A-Z then 0-9
-        $keys = ($json.PSObject.Properties.Name | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } else { [string]$_ } })
-        foreach ($k in $keys) {
-            $t = $json.$k
-            Write-Host "[$k] $($t.Name)"
-        }
+    # Sort alphabetic + numeric keys properly
+    $keys = ($json.PSObject.Properties.Name | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } else { $_ } })
 
-        Write-Host "[9] System Information"
-        Write-Host "[0] Exit"
-        Write-Host ""
-        $choice = Read-Host "Press a key (0 to Exit, 9 for System Info)"
+    foreach ($k in $keys) {
+        $t = $json.$k
+        Write-Host "[$k] $($t.Name)"
+    }
 
-        switch ($choice) {
-            "0" { exit }
-            "9" { Show-SystemInfo }
-            default {
-                if ($json.$choice) {
-                    Download-And-Run $json.$choice
-                } else {
-                    Write-Host "❌ Invalid choice, try again." -ForegroundColor Red
-                }
+    Write-Host "[9] System Information"
+    Write-Host "[0] Exit"
+    Write-Host ""
+}
+
+# ---------------------------
+# Main Loop
+# ---------------------------
+while ($true) {
+    Show-Menu
+    $choice = Read-Host "Press a key (0 to Exit, 9 for System Info)"
+
+    switch ($choice) {
+        "0" { Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green; Start-Sleep 1; exit }
+        "9" { Show-SystemInfo }
+        default {
+            if ($json.$choice) {
+                Download-And-Run $json.$choice
+            } else {
+                Write-Host "❌ Invalid choice, try again." -ForegroundColor Red
             }
         }
     }
-}
 
-Show-Menu
+    Write-Host "`nPress ENTER to return to menu..."
+    Read-Host
+}
