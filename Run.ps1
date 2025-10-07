@@ -120,10 +120,10 @@ function Show-SystemInfo {
 }
 
 # ==============================
-# Download & Run (robust, multi-type)
+# Download & Run (Auto-detects file type)
 # ==============================
 function Download-And-Run($number) {
-    $FileName = $null
+    $FileName = "<unknown>"
     try {
         $app = $apps.$number
         if (-not $app) {
@@ -133,8 +133,9 @@ function Download-And-Run($number) {
 
         $FileName = $app.Name
         $Url = $app.Url
+        $Type = $app.Type  # Optional (can be blank)
 
-        # Robust extension detection (works if URL has query strings)
+        # Extract file extension
         try {
             $uri = [uri]$Url
             $Ext = [System.IO.Path]::GetExtension($uri.AbsolutePath)
@@ -142,46 +143,62 @@ function Download-And-Run($number) {
             $Ext = [System.IO.Path]::GetExtension($Url)
         }
 
-        if (-not $Ext) { $Ext = ".exe" }    # fallback
+        if (-not $Ext -and $Type) {
+            $Ext = "." + $Type
+        } elseif (-not $Ext) {
+            $Ext = ".exe"
+        }
 
+        # File destination
         $FilePath = Join-Path $env:TEMP ("{0}{1}" -f $FileName, $Ext)
 
-        # Download if not present
+        # Download if missing
         if (-not (Test-Path $FilePath)) {
             Write-Host ("⬇️ Downloading {0} ({1})..." -f $FileName, $Ext)
             Invoke-WebRequest -Uri $Url -OutFile $FilePath -UseBasicParsing
-        }
-        else {
+        } else {
             Write-Host ("✔️ {0} already available in TEMP." -f $FileName)
         }
 
         Write-Host ("🚀 Launching {0}..." -f $FileName) -ForegroundColor Green
 
-        switch ($Ext.ToLower()) {
-            '.exe' {
+        # Auto-detect execution type
+        $extLower = $Ext.ToLower()
+
+        if ($Type) { $extLower = "." + $Type.ToLower() }
+
+        switch ($extLower) {
+            ".exe" {
                 Start-Process -FilePath $FilePath
             }
-            '.ps1' {
-                Start-Process -FilePath (Get-Command powershell).Source -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
+            ".ps1" {
+                Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
             }
-            '.bat' {
-                Start-Process -FilePath (Get-Command cmd).Source -ArgumentList "/c `"$FilePath`""
+            ".bat" {
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$FilePath`""
             }
-            '.cmd' {
-                Start-Process -FilePath (Get-Command cmd).Source -ArgumentList "/c `"$FilePath`""
+            ".cmd" {
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$FilePath`""
             }
-            '.vbs' {
-                Start-Process -FilePath (Get-Command wscript).Source -ArgumentList "`"$FilePath`""
+            ".vbs" {
+                Start-Process -FilePath "wscript.exe" -ArgumentList "`"$FilePath`""
             }
             default {
-                Write-Host ("⚠️ Unsupported file type: {0}" -f $Ext) -ForegroundColor Yellow
+                # Try to guess — if content looks like a script
+                $content = Get-Content -Path $FilePath -ErrorAction SilentlyContinue -First 1
+                if ($content -match "powershell" -or $content -match "Write-Host") {
+                    Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
+                } elseif ($content -match "@echo off" -or $content -match "cmd") {
+                    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$FilePath`""
+                } else {
+                    Write-Host ("⚠️ Unsupported or unknown file type: {0}" -f $Ext) -ForegroundColor Yellow
+                }
             }
         }
     }
     catch {
-        # Use -f formatting to avoid interpolation/parsing problems and show exception message
         $errMsg = if ($_.Exception -and $_.Exception.Message) { $_.Exception.Message } else { "$_" }
-        Write-Host ("❌ Error while launching {0}: {1}" -f ($FileName -ne $null ? $FileName : "<unknown>"), $errMsg) -ForegroundColor Red
+        Write-Host ("❌ Error while launching {0}: {1}" -f $FileName, $errMsg) -ForegroundColor Red
     }
 }
 
