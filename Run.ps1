@@ -120,7 +120,7 @@ function Show-SystemInfo {
 }
 
 # ==============================
-# Download & Run
+# Download & Run (Multi-Type Support)
 # ==============================
 function Download-And-Run($number) {
     try {
@@ -129,20 +129,45 @@ function Download-And-Run($number) {
             Write-Host "Invalid selection." -ForegroundColor Red
             return
         }
-        $FilePath = Join-Path $env:TEMP "$($app.Name).exe"
 
+        $FileName = $app.Name
+        $Url = $app.Url
+        $Ext = [System.IO.Path]::GetExtension($Url)
+        $FilePath = Join-Path $env:TEMP "$FileName$Ext"
+
+        # Download if not exists
         if (-not (Test-Path $FilePath)) {
-            Write-Host "⬇️ Downloading $($app.Name)..."
-            Invoke-WebRequest -Uri $app.Url -OutFile $FilePath -UseBasicParsing
+            Write-Host "⬇️ Downloading $FileName ($Ext)..."
+            Invoke-WebRequest -Uri $Url -OutFile $FilePath -UseBasicParsing
         } else {
-            Write-Host "✔️ $($app.Name) already in TEMP."
+            Write-Host "✔️ $FileName already available in TEMP."
         }
 
-        Write-Host "🚀 Launching $($app.Name)..."
-        Start-Process -FilePath $FilePath
+        Write-Host "🚀 Launching $FileName..." -ForegroundColor Green
+
+        switch -Regex ($Ext.ToLower()) {
+            '\.exe' {
+                Start-Process -FilePath $FilePath
+            }
+            '\.ps1' {
+                Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
+            }
+            '\.bat' {
+                Start-Process "cmd.exe" -ArgumentList "/c `"$FilePath`""
+            }
+            '\.cmd' {
+                Start-Process "cmd.exe" -ArgumentList "/c `"$FilePath`""
+            }
+            '\.vbs' {
+                Start-Process "wscript.exe" -ArgumentList "`"$FilePath`""
+            }
+            default {
+                Write-Host "⚠️ Unsupported file type: $Ext" -ForegroundColor Yellow
+            }
+        }
     }
     catch {
-        Write-Error "Error with $($app.Name): $_"
+        Write-Host "❌ Error while launching $FileName: $_" -ForegroundColor Red
     }
 }
 
