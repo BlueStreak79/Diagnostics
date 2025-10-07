@@ -1,13 +1,12 @@
 # ==============================
-# BLUE'S DIAGNOSTICS DASHBOARD
-# Universal key (numbers + letters) + Smart Launcher
+# BLUE'S DIAGNOSTICS DASHBOARD (Auto JSON Loader)
 # ==============================
 
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # ==============================
-# Load app list from JSON
+# Load tools from JSON (local or remote)
 # ==============================
 $toolsUrl = "https://github.com/BlueStreak79/Diagnostics/raw/main/tools.json"
 try {
@@ -28,8 +27,8 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    $keys = $apps.PSObject.Properties.Name | Sort-Object
-
+    # Auto-list all tools from JSON
+    $keys = $apps.PSObject.Properties.Name | Sort-Object {[int]($_ -replace '[^\d]', '0')}
     foreach ($k in $keys) {
         Write-Host "[$k] $($apps.$k.Name)"
     }
@@ -39,14 +38,13 @@ function Show-Dashboard {
 }
 
 # ==============================
-# System Info (Polished GUI)
+# System Info GUI Popup
 # ==============================
 function Show-SystemInfo {
     Add-Type -AssemblyName PresentationFramework
 
     $osVersion = (Get-ComputerInfo).WindowsProductName
     $winVer = if ($osVersion -match "Windows 11") { "Windows 11" } else { "Windows 10" }
-
     $diskInfo = Get-PhysicalDisk | ForEach-Object { "$($_.FriendlyName) ($([math]::Round($_.Size/1GB)) GB)" }
     $gpuInfo = (Get-CimInstance Win32_VideoController | Select-Object -First 1).Name
 
@@ -66,24 +64,18 @@ function Show-SystemInfo {
     $window.SizeToContent = "WidthAndHeight"
     $window.WindowStartupLocation = "CenterScreen"
     $window.ResizeMode = "NoResize"
-    $window.Background = "#1E1E1E"
-    $window.Foreground = "White"
-    $window.FontFamily = "Segoe UI"
-    $window.Width = 520
+    $window.Width = 500
 
     $stack = New-Object System.Windows.Controls.StackPanel
-    $stack.Margin = "15"
+    $stack.Margin = "10"
+    $stack.Orientation = "Vertical"
 
     $grid = New-Object System.Windows.Controls.Grid
     $grid.Margin = "0,0,0,10"
     $grid.HorizontalAlignment = "Stretch"
 
-    $col1 = New-Object System.Windows.Controls.ColumnDefinition
-    $col1.Width = "180"
-    $col2 = New-Object System.Windows.Controls.ColumnDefinition
-    $col2.Width = "300"
-    $grid.ColumnDefinitions.Add($col1)
-    $grid.ColumnDefinitions.Add($col2)
+    $grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition))
+    $grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition))
 
     for ($i=0; $i -lt $info.Count; $i++) {
         $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition))
@@ -93,7 +85,7 @@ function Show-SystemInfo {
         $propText.Margin = "5"
         $propText.FontWeight = "Bold"
         $propText.FontSize = 14
-        $propText.Foreground = "LightBlue"
+        $propText.VerticalAlignment = "Center"
         [System.Windows.Controls.Grid]::SetRow($propText, $i)
         [System.Windows.Controls.Grid]::SetColumn($propText, 0)
         $grid.Children.Add($propText)
@@ -102,7 +94,7 @@ function Show-SystemInfo {
         $valText.Text = $info[$i].Value
         $valText.Margin = "5"
         $valText.FontSize = 14
-        $valText.Foreground = "White"
+        $valText.VerticalAlignment = "Center"
         [System.Windows.Controls.Grid]::SetRow($valText, $i)
         [System.Windows.Controls.Grid]::SetColumn($valText, 1)
         $grid.Children.Add($valText)
@@ -113,12 +105,10 @@ function Show-SystemInfo {
     $btn = New-Object System.Windows.Controls.Button
     $btn.Content = "OK"
     $btn.Width = 100
-    $btn.Height = 32
+    $btn.Height = 30
     $btn.Margin = "0,10,0,0"
     $btn.HorizontalAlignment = "Center"
     $btn.FontWeight = "Bold"
-    $btn.Background = "#0078D7"
-    $btn.Foreground = "White"
     $btn.Add_Click({ $window.Close() })
     $stack.Children.Add($btn)
 
@@ -127,7 +117,7 @@ function Show-SystemInfo {
 }
 
 # ==============================
-# Smart Downloader & Executor
+# Download & Run (Smart File Handling)
 # ==============================
 function Download-And-Run($key) {
     try {
@@ -139,44 +129,46 @@ function Download-And-Run($key) {
 
         $url = $app.Url
         $name = $app.Name
-        $extension = [System.IO.Path]::GetExtension($url)
+        $ext = [System.IO.Path]::GetExtension($url)
 
-        $FilePath = Join-Path $env:TEMP "$name$extension"
-        if (-not (Test-Path $FilePath)) {
-            Write-Host "⬇️ Downloading $name..."
-            Invoke-WebRequest -Uri $url -OutFile $FilePath -UseBasicParsing
-        } else {
-            Write-Host "✔️ $name already exists in TEMP."
+        if ($url -match "^https://get\.activated\.win") {
+            Write-Host "🚀 Launching MassGrave Activation..." -ForegroundColor Cyan
+            Start-Job -ScriptBlock { Invoke-Expression -Command "irm https://get.activated.win | iex" } | Out-Null
+            return
         }
 
-        if ($extension -eq ".ps1") {
-            Write-Host "🚀 Executing PowerShell script $name..."
-            Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$FilePath`""
-        } elseif ($extension -eq ".exe") {
-            Write-Host "🚀 Launching executable $name..."
-            Start-Process -FilePath $FilePath
-        } elseif ($extension -eq ".cmd") {
-            Write-Host "🚀 Launching executable $name..."
-            Start-Process "cmd.exe" -ArgumentList "/c `"$TempPath`""
-        } else {
-            Write-Host "🌐Opening Link In Browser"
-            Start-Process $url
+        $filePath = Join-Path $env:TEMP "$name$ext"
+
+        if ($ext -eq ".exe") {
+            if (-not (Test-Path $filePath)) {
+                Write-Host "⬇️ Downloading $name..." -ForegroundColor Yellow
+                Invoke-WebRequest -Uri $url -OutFile $filePath -UseBasicParsing
+            }
+            Write-Host "🚀 Launching $name..." -ForegroundColor Cyan
+            Start-Process -FilePath $filePath
+        }
+        elseif ($ext -eq ".ps1" -or $ext -eq ".cmd") {
+            Write-Host "⚙️ Running script $name..." -ForegroundColor Yellow
+            $code = Invoke-RestMethod -Uri $url -UseBasicParsing
+            Invoke-Expression $code
+        }
+        else {
+            Write-Host "❓ Unknown file type for $name ($ext)" -ForegroundColor Red
         }
     }
     catch {
-        Write-Host ("❌ Error while launching {0}: {1}" -f $key, $_.Exception.Message) -ForegroundColor Red
+        Write-Host "❌ Error while running $key: $_" -ForegroundColor Red
     }
 }
 
 # ==============================
-# Main Loop (Letter + Number Input)
+# Main Loop
 # ==============================
 while ($true) {
     Show-Dashboard
     Write-Host "`nPress a key (0 to exit, 9 for System Info)..."
 
-    $key = [System.Console]::ReadKey($true).KeyChar.ToString().ToUpper()
-
+    $key = [System.Console]::ReadKey($true).KeyChar
     if ($key -eq '0') {
         Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green
         Start-Sleep -Seconds 1
@@ -190,7 +182,7 @@ while ($true) {
         Start-Sleep -Seconds 2
     }
     else {
-        Write-Host "`n⚠️ Invalid input. Try again." -ForegroundColor Yellow
+        Write-Host "`nInvalid selection. Please choose a valid key." -ForegroundColor Red
         Start-Sleep -Seconds 1.5
     }
 }
