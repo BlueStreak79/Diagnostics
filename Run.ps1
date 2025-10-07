@@ -120,54 +120,68 @@ function Show-SystemInfo {
 }
 
 # ==============================
-# Download & Run (Multi-Type Support)
+# Download & Run (robust, multi-type)
 # ==============================
 function Download-And-Run($number) {
+    $FileName = $null
     try {
         $app = $apps.$number
         if (-not $app) {
-            Write-Host "Invalid selection." -ForegroundColor Red
+            Write-Host "Invalid selection." -ForegroundColor Yellow
             return
         }
 
         $FileName = $app.Name
         $Url = $app.Url
-        $Ext = [System.IO.Path]::GetExtension($Url)
-        $FilePath = Join-Path $env:TEMP "$FileName$Ext"
 
-        # Download if not exists
-        if (-not (Test-Path $FilePath)) {
-            Write-Host "⬇️ Downloading $FileName ($Ext)..."
-            Invoke-WebRequest -Uri $Url -OutFile $FilePath -UseBasicParsing
-        } else {
-            Write-Host "✔️ $FileName already available in TEMP."
+        # Robust extension detection (works if URL has query strings)
+        try {
+            $uri = [uri]$Url
+            $Ext = [System.IO.Path]::GetExtension($uri.AbsolutePath)
+        } catch {
+            $Ext = [System.IO.Path]::GetExtension($Url)
         }
 
-        Write-Host "🚀 Launching $FileName..." -ForegroundColor Green
+        if (-not $Ext) { $Ext = ".exe" }    # fallback
 
-        switch -Regex ($Ext.ToLower()) {
-            '\.exe' {
+        $FilePath = Join-Path $env:TEMP ("{0}{1}" -f $FileName, $Ext)
+
+        # Download if not present
+        if (-not (Test-Path $FilePath)) {
+            Write-Host ("⬇️ Downloading {0} ({1})..." -f $FileName, $Ext)
+            Invoke-WebRequest -Uri $Url -OutFile $FilePath -UseBasicParsing
+        }
+        else {
+            Write-Host ("✔️ {0} already available in TEMP." -f $FileName)
+        }
+
+        Write-Host ("🚀 Launching {0}..." -f $FileName) -ForegroundColor Green
+
+        switch ($Ext.ToLower()) {
+            '.exe' {
                 Start-Process -FilePath $FilePath
             }
-            '\.ps1' {
-                Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
+            '.ps1' {
+                Start-Process -FilePath (Get-Command powershell).Source -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
             }
-            '\.bat' {
-                Start-Process "cmd.exe" -ArgumentList "/c `"$FilePath`""
+            '.bat' {
+                Start-Process -FilePath (Get-Command cmd).Source -ArgumentList "/c `"$FilePath`""
             }
-            '\.cmd' {
-                Start-Process "cmd.exe" -ArgumentList "/c `"$FilePath`""
+            '.cmd' {
+                Start-Process -FilePath (Get-Command cmd).Source -ArgumentList "/c `"$FilePath`""
             }
-            '\.vbs' {
-                Start-Process "wscript.exe" -ArgumentList "`"$FilePath`""
+            '.vbs' {
+                Start-Process -FilePath (Get-Command wscript).Source -ArgumentList "`"$FilePath`""
             }
             default {
-                Write-Host "⚠️ Unsupported file type: $Ext" -ForegroundColor Yellow
+                Write-Host ("⚠️ Unsupported file type: {0}" -f $Ext) -ForegroundColor Yellow
             }
         }
     }
     catch {
-        Write-Host "❌ Error while launching ${FileName}: $_" -ForegroundColor Red
+        # Use -f formatting to avoid interpolation/parsing problems and show exception message
+        $errMsg = if ($_.Exception -and $_.Exception.Message) { $_.Exception.Message } else { "$_" }
+        Write-Host ("❌ Error while launching {0}: {1}" -f ($FileName -ne $null ? $FileName : "<unknown>"), $errMsg) -ForegroundColor Red
     }
 }
 
