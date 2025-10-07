@@ -1,6 +1,6 @@
 # ==============================
 # BLUE'S DIAGNOSTICS DASHBOARD
-# JSON-driven version with System Info
+# Universal key (numbers + letters) + Smart Launcher
 # ==============================
 
 $ErrorActionPreference = "Stop"
@@ -28,8 +28,7 @@ function Show-Dashboard {
     Write-Host "`nThese diagnostics are created by Blue..."
     Write-Host "Unlocking system secrets with just one click!`n"
 
-    # Sort numeric keys
-    $keys = $apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object {[int]$_}
+    $keys = $apps.PSObject.Properties.Name | Sort-Object
 
     foreach ($k in $keys) {
         Write-Host "[$k] $($apps.$k.Name)"
@@ -40,7 +39,7 @@ function Show-Dashboard {
 }
 
 # ==============================
-# System Info (Polished GUI Popup)
+# System Info (Polished GUI)
 # ==============================
 function Show-SystemInfo {
     Add-Type -AssemblyName PresentationFramework
@@ -67,18 +66,24 @@ function Show-SystemInfo {
     $window.SizeToContent = "WidthAndHeight"
     $window.WindowStartupLocation = "CenterScreen"
     $window.ResizeMode = "NoResize"
-    $window.Width = 500
+    $window.Background = "#1E1E1E"
+    $window.Foreground = "White"
+    $window.FontFamily = "Segoe UI"
+    $window.Width = 520
 
     $stack = New-Object System.Windows.Controls.StackPanel
-    $stack.Margin = "10"
-    $stack.Orientation = "Vertical"
+    $stack.Margin = "15"
 
     $grid = New-Object System.Windows.Controls.Grid
     $grid.Margin = "0,0,0,10"
     $grid.HorizontalAlignment = "Stretch"
 
-    $grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition))
-    $grid.ColumnDefinitions.Add((New-Object System.Windows.Controls.ColumnDefinition))
+    $col1 = New-Object System.Windows.Controls.ColumnDefinition
+    $col1.Width = "180"
+    $col2 = New-Object System.Windows.Controls.ColumnDefinition
+    $col2.Width = "300"
+    $grid.ColumnDefinitions.Add($col1)
+    $grid.ColumnDefinitions.Add($col2)
 
     for ($i=0; $i -lt $info.Count; $i++) {
         $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition))
@@ -88,7 +93,7 @@ function Show-SystemInfo {
         $propText.Margin = "5"
         $propText.FontWeight = "Bold"
         $propText.FontSize = 14
-        $propText.VerticalAlignment = "Center"
+        $propText.Foreground = "LightBlue"
         [System.Windows.Controls.Grid]::SetRow($propText, $i)
         [System.Windows.Controls.Grid]::SetColumn($propText, 0)
         $grid.Children.Add($propText)
@@ -97,7 +102,7 @@ function Show-SystemInfo {
         $valText.Text = $info[$i].Value
         $valText.Margin = "5"
         $valText.FontSize = 14
-        $valText.VerticalAlignment = "Center"
+        $valText.Foreground = "White"
         [System.Windows.Controls.Grid]::SetRow($valText, $i)
         [System.Windows.Controls.Grid]::SetColumn($valText, 1)
         $grid.Children.Add($valText)
@@ -108,10 +113,12 @@ function Show-SystemInfo {
     $btn = New-Object System.Windows.Controls.Button
     $btn.Content = "OK"
     $btn.Width = 100
-    $btn.Height = 30
+    $btn.Height = 32
     $btn.Margin = "0,10,0,0"
     $btn.HorizontalAlignment = "Center"
     $btn.FontWeight = "Bold"
+    $btn.Background = "#0078D7"
+    $btn.Foreground = "White"
     $btn.Add_Click({ $window.Close() })
     $stack.Children.Add($btn)
 
@@ -120,96 +127,53 @@ function Show-SystemInfo {
 }
 
 # ==============================
-# Download & Run (Auto-detects file type)
+# Smart Downloader & Executor
 # ==============================
-function Download-And-Run($number) {
-    $FileName = "<unknown>"
+function Download-And-Run($key) {
     try {
-        $app = $apps.$number
+        $app = $apps.$key
         if (-not $app) {
-            Write-Host "Invalid selection." -ForegroundColor Yellow
+            Write-Host "❌ Invalid selection." -ForegroundColor Red
             return
         }
 
-        $FileName = $app.Name
-        $Url = $app.Url
-        $Type = $app.Type  # Optional (can be blank)
+        $url = $app.Url
+        $name = $app.Name
+        $extension = [System.IO.Path]::GetExtension($url)
 
-        # Extract file extension
-        try {
-            $uri = [uri]$Url
-            $Ext = [System.IO.Path]::GetExtension($uri.AbsolutePath)
-        } catch {
-            $Ext = [System.IO.Path]::GetExtension($Url)
-        }
-
-        if (-not $Ext -and $Type) {
-            $Ext = "." + $Type
-        } elseif (-not $Ext) {
-            $Ext = ".exe"
-        }
-
-        # File destination
-        $FilePath = Join-Path $env:TEMP ("{0}{1}" -f $FileName, $Ext)
-
-        # Download if missing
+        $FilePath = Join-Path $env:TEMP "$name$extension"
         if (-not (Test-Path $FilePath)) {
-            Write-Host ("⬇️ Downloading {0} ({1})..." -f $FileName, $Ext)
-            Invoke-WebRequest -Uri $Url -OutFile $FilePath -UseBasicParsing
+            Write-Host "⬇️ Downloading $name..."
+            Invoke-WebRequest -Uri $url -OutFile $FilePath -UseBasicParsing
         } else {
-            Write-Host ("✔️ {0} already available in TEMP." -f $FileName)
+            Write-Host "✔️ $name already exists in TEMP."
         }
 
-        Write-Host ("🚀 Launching {0}..." -f $FileName) -ForegroundColor Green
-
-        # Auto-detect execution type
-        $extLower = $Ext.ToLower()
-
-        if ($Type) { $extLower = "." + $Type.ToLower() }
-
-        switch ($extLower) {
-            ".exe" {
-                Start-Process -FilePath $FilePath
-            }
-            ".ps1" {
-                Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
-            }
-            ".bat" {
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$FilePath`""
-            }
-            ".cmd" {
-                Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$FilePath`""
-            }
-            ".vbs" {
-                Start-Process -FilePath "wscript.exe" -ArgumentList "`"$FilePath`""
-            }
-            default {
-                # Try to guess — if content looks like a script
-                $content = Get-Content -Path $FilePath -ErrorAction SilentlyContinue -First 1
-                if ($content -match "powershell" -or $content -match "Write-Host") {
-                    Start-Process -FilePath "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -NoProfile -File `"$FilePath`""
-                } elseif ($content -match "@echo off" -or $content -match "cmd") {
-                    Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$FilePath`""
-                } else {
-                    Write-Host ("⚠️ Unsupported or unknown file type: {0}" -f $Ext) -ForegroundColor Yellow
-                }
-            }
+        if ($extension -eq ".ps1") {
+            Write-Host "🚀 Executing PowerShell script $name..."
+            Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$FilePath`""
+        } elseif ($extension -eq ".exe") {
+            Write-Host "🚀 Launching executable $name..."
+            Start-Process -FilePath $FilePath
+        } else {
+            Write-Host "🌐 Opening link in browser..."
+            Start-Process $url
         }
     }
     catch {
-        $errMsg = if ($_.Exception -and $_.Exception.Message) { $_.Exception.Message } else { "$_" }
-        Write-Host ("❌ Error while launching {0}: {1}" -f $FileName, $errMsg) -ForegroundColor Red
+        Write-Host ("❌ Error while launching {0}: {1}" -f $key, $_.Exception.Message) -ForegroundColor Red
     }
 }
 
 # ==============================
-# Main Loop (One-Key Input)
+# Main Loop (Letter + Number Input)
 # ==============================
 while ($true) {
     Show-Dashboard
-    Write-Host "`nPress a number key (0 to exit, 9 for System Info)..."
+    Write-Host "`nPress a key (0 to exit, 9 for System Info)..."
 
-    $key = [System.Console]::ReadKey($true).KeyChar
+    $key = [System.Console]::ReadKey($true).KeyChar.ToString().ToUpper()
+
     if ($key -eq '0') {
         Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green
         Start-Sleep -Seconds 1
@@ -218,12 +182,12 @@ while ($true) {
     elseif ($key -eq '9') {
         Show-SystemInfo
     }
-    elseif ($key -match '^\d$') {
-        Download-And-Run -number $key
+    elseif ($apps.PSObject.Properties.Name -contains $key) {
+        Download-And-Run -key $key
         Start-Sleep -Seconds 2
     }
     else {
-        Write-Host "`nInvalid selection. Please choose a valid number." -ForegroundColor Red
+        Write-Host "`n⚠️ Invalid input. Try again." -ForegroundColor Yellow
         Start-Sleep -Seconds 1.5
     }
 }
