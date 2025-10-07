@@ -1,111 +1,110 @@
-# ===============================
+# ====================================
 #   BLUE'S DIAGNOSTICS DASHBOARD
-# ===============================
-#   Created by BlueStreak79
-# ===============================
+# ====================================
 
-$ErrorActionPreference = "Stop"
-$ToolsJsonUrl = "https://github.com/BlueStreak79/Diagnostics/raw/main/tools.json"
-$ToolsFolder = "$env:TEMP\BlueDiagnostics"
-if (!(Test-Path $ToolsFolder)) { New-Item -Path $ToolsFolder -ItemType Directory | Out-Null }
+$toolsJsonUrl = "https://github.com/BlueStreak79/Diagnostics/raw/main/tools.json"
+$tempDir = "$env:TEMP\BlueDiag"
+if (!(Test-Path $tempDir)) { New-Item -ItemType Directory -Path $tempDir | Out-Null }
 
-# --- Function: Download JSON & Parse ---
-function Get-ToolsList {
-    try {
-        Write-Host "`n🔄 Fetching tools list..." -ForegroundColor Cyan
-        $json = Invoke-RestMethod -Uri $ToolsJsonUrl -UseBasicParsing
-        return $json
-    }
-    catch {
-        Write-Host "❌ Failed to load tools list: $_" -ForegroundColor Red
-        exit
-    }
-}
-
-# --- Function: Download & Run any file ---
 function Download-And-Run($tool) {
     try {
-        $FileName = $tool.Name
-        $Url = $tool.Url
-        $FilePath = Join-Path $ToolsFolder $FileName
+        $FileName = [System.IO.Path]::GetFileName($tool.Url)
+        $LocalPath = Join-Path $tempDir $FileName
 
-        # Determine extension
-        $ext = [IO.Path]::GetExtension($FileName).ToLower()
+        Write-Host "`n⚙️  Downloading $($tool.Name)..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $tool.Url -OutFile $LocalPath -ErrorAction Stop
 
-        Write-Host "`n⬇️  Downloading $FileName ..." -ForegroundColor Yellow
-        Invoke-WebRequest -Uri $Url -OutFile $FilePath -UseBasicParsing
+        Write-Host "🚀 Launching $($tool.Name)..." -ForegroundColor Green
 
-        Write-Host "🚀 Launching $FileName..." -ForegroundColor Green
+        # Determine file type
+        $extension = [System.IO.Path]::GetExtension($FileName).ToLower()
 
-        switch ($ext) {
-            ".exe" { Start-Process -FilePath $FilePath -Wait }
-            ".ps1" { Start-Job -ScriptBlock { & powershell -ExecutionPolicy Bypass -File $using:FilePath } | Out-Null }
-            ".cmd" { Start-Job -ScriptBlock { & cmd /c $using:FilePath } | Out-Null }
-            default { Write-Host "⚠️ Unsupported file type: $ext" -ForegroundColor DarkYellow }
+        switch ($extension) {
+            ".exe" {
+                Start-Process $LocalPath
+            }
+            ".ps1" {
+                Start-Job -ScriptBlock {
+                    powershell -ExecutionPolicy Bypass -NoProfile -File $using:LocalPath
+                } | Out-Null
+            }
+            ".cmd" {
+                Start-Job -ScriptBlock {
+                    cmd /c $using:LocalPath
+                } | Out-Null
+            }
+            default {
+                Write-Host "⚠️ Unknown file type: $extension" -ForegroundColor Yellow
+            }
         }
     }
     catch {
         $errMsg = $_.Exception.Message
-        Write-Host ("❌ Error while launching {0}: {1}" -f ($FileName ?? "<unknown>"), $errMsg) -ForegroundColor Red
+        if ($null -ne $FileName) {
+            Write-Host ("❌ Error while launching {0}: {1}" -f $FileName, $errMsg) -ForegroundColor Red
+        }
+        else {
+            Write-Host ("❌ Error while launching <unknown>: {0}" -f $errMsg) -ForegroundColor Red
+        }
     }
 }
 
-# --- Function: System Info Popup ---
-function Show-SystemInfo {
-    Add-Type -AssemblyName PresentationFramework
-    $sys = Get-ComputerInfo | Select-Object CsName, WindowsProductName, OsArchitecture, CsManufacturer, CsModel, CsTotalPhysicalMemory
-    $info = @"
-System Name: $($sys.CsName)
-Product:     $($sys.WindowsProductName)
-Architecture:$($sys.OsArchitecture)
-Manufacturer:$($sys.CsManufacturer)
-Model:       $($sys.CsModel)
-RAM:         $([math]::Round($sys.CsTotalPhysicalMemory / 1GB, 2)) GB
-"@
-    [System.Windows.MessageBox]::Show($info, "🖥️ System Information")
+try {
+    Write-Host "Fetching tool list..." -ForegroundColor DarkCyan
+    $apps = Invoke-RestMethod -Uri $toolsJsonUrl -ErrorAction Stop
+}
+catch {
+    Write-Host "❌ Unable to fetch tool list from JSON file." -ForegroundColor Red
+    exit
 }
 
-# --- Load Tools ---
-$apps = Get-ToolsList
+function Show-SystemInfo {
+    Add-Type -AssemblyName System.Windows.Forms
+    $info = Get-ComputerInfo | Select-Object CsName, WindowsProductName, WindowsVersion, OsArchitecture, CsManufacturer, CsModel, BiosVersion, BiosReleaseDate
+    $message = $info | Out-String
+    [System.Windows.Forms.MessageBox]::Show($message, "System Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
+}
 
-# --- Display Menu ---
 function Show-Menu {
     Clear-Host
-    Write-Host "====================================" -ForegroundColor Cyan
-    Write-Host "   BLUE'S DIAGNOSTICS DASHBOARD" -ForegroundColor Blue
-    Write-Host "====================================" -ForegroundColor Cyan
-    Write-Host "`nThese diagnostics are created by Blue..."
-    Write-Host "Unlocking system secrets with just one click!`n" -ForegroundColor Yellow
+    Write-Host "===================================="
+    Write-Host "   BLUE'S DIAGNOSTICS DASHBOARD"
+    Write-Host "===================================="
+    Write-Host ""
+    Write-Host "These diagnostics are created by Blue..."
+    Write-Host "Unlocking system secrets with just one click!"
+    Write-Host ""
 
-    foreach ($key in ($apps.PSObject.Properties.Name | Sort-Object {[int]($_ -replace '\D','') -as [int]})) {
-        $tool = $apps.$key
-        Write-Host "[$key] $($tool.Name)"
+    foreach ($k in ($apps.PSObject.Properties.Name | Sort-Object { [int]$_ })) {
+        $tool = $apps.$k
+        Write-Host ("[{0}] {1}" -f $k, $tool.Name)
     }
 
-    Write-Host "`n[9] System Information"
+    Write-Host "[9] System Information"
     Write-Host "[0] Exit"
     Write-Host ""
 }
 
-# --- Main Loop ---
 do {
     Show-Menu
-    $choice = Read-Host "Press a number key (0 to exit, 9 for System Info)"
+    $choice = Read-Host "Press a number key (0 to exit, 9 for System Info)..."
 
-    switch ($choice) {
-        "0" { break }
-        "9" { Show-SystemInfo }
-        default {
-            if ($apps.PSObject.Properties.Name -contains $choice) {
-                Download-And-Run $apps.$choice
-            }
-            else {
-                Write-Host "⚠️ Invalid choice, try again!" -ForegroundColor DarkYellow
-            }
-        }
+    if ($choice -eq '0') {
+        Write-Host "Exiting BlueDiag..." -ForegroundColor DarkGray
+        break
+    }
+    elseif ($choice -eq '9') {
+        Show-SystemInfo
+    }
+    elseif ($apps.PSObject.Properties.Name -contains $choice) {
+        $tool = $apps.$choice
+        Download-And-Run $tool
+    }
+    else {
+        Write-Host "❌ Invalid selection. Try again." -ForegroundColor Red
     }
 
-    Pause
-} while ($true)
-
-Write-Host "`n👋 Exiting Blue's Diagnostics Dashboard..." -ForegroundColor Cyan
+    Write-Host "`nPress Enter to continue..." -ForegroundColor Gray
+    Read-Host | Out-Null
+}
+while ($true)
