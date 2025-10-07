@@ -1,70 +1,25 @@
-# ====================================
-#   BLUE'S DIAGNOSTICS DASHBOARD
-# ====================================
+# ==============================
+# BLUE'S DIAGNOSTICS DASHBOARD
+# JSON-driven version with System Info
+# ==============================
 
-$toolsJsonUrl = "https://github.com/BlueStreak79/Diagnostics/raw/main/tools.json"
-$tempDir = "$env:TEMP\BlueDiag"
-if (!(Test-Path $tempDir)) { New-Item -ItemType Directory -Path $tempDir | Out-Null }
+$ErrorActionPreference = "Stop"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-function Download-And-Run($tool) {
-    try {
-        $FileName = [System.IO.Path]::GetFileName($tool.Url)
-        $LocalPath = Join-Path $tempDir $FileName
-
-        Write-Host "`n⚙️  Downloading $($tool.Name)..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $tool.Url -OutFile $LocalPath -ErrorAction Stop
-
-        Write-Host "🚀 Launching $($tool.Name)..." -ForegroundColor Green
-
-        # Determine file type
-        $extension = [System.IO.Path]::GetExtension($FileName).ToLower()
-
-        switch ($extension) {
-            ".exe" {
-                Start-Process $LocalPath
-            }
-            ".ps1" {
-                Start-Job -ScriptBlock {
-                    powershell -ExecutionPolicy Bypass -NoProfile -File $using:LocalPath
-                } | Out-Null
-            }
-            ".cmd" {
-                Start-Job -ScriptBlock {
-                    cmd /c $using:LocalPath
-                } | Out-Null
-            }
-            default {
-                Write-Host "⚠️ Unknown file type: $extension" -ForegroundColor Yellow
-            }
-        }
-    }
-    catch {
-        $errMsg = $_.Exception.Message
-        if ($null -ne $FileName) {
-            Write-Host ("❌ Error while launching {0}: {1}" -f $FileName, $errMsg) -ForegroundColor Red
-        }
-        else {
-            Write-Host ("❌ Error while launching <unknown>: {0}" -f $errMsg) -ForegroundColor Red
-        }
-    }
-}
-
+# ==============================
+# Load app list from JSON
+# ==============================
+$toolsUrl = "https://github.com/BlueStreak79/Diagnostics/raw/main/tools.json"
 try {
-    Write-Host "Fetching tool list..." -ForegroundColor DarkCyan
-    $apps = Invoke-RestMethod -Uri $toolsJsonUrl -ErrorAction Stop
-}
-catch {
-    Write-Host "❌ Unable to fetch tool list from JSON file." -ForegroundColor Red
+    $apps = Invoke-RestMethod -Uri $toolsUrl -UseBasicParsing
+} catch {
+    Write-Host "❌ Failed to load tools list from GitHub." -ForegroundColor Red
     exit
 }
 
-function Show-SystemInfo {
-    Add-Type -AssemblyName System.Windows.Forms
-    $info = Get-ComputerInfo | Select-Object CsName, WindowsProductName, WindowsVersion, OsArchitecture, CsManufacturer, CsModel, BiosVersion, BiosReleaseDate
-    $message = $info | Out-String
-    [System.Windows.Forms.MessageBox]::Show($message, "System Information", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information)
-}
-
+# ==============================
+# Show Menu
+# ==============================
 function Show-Menu {
     Clear-Host
     Write-Host "===================================="
@@ -75,7 +30,10 @@ function Show-Menu {
     Write-Host "Unlocking system secrets with just one click!"
     Write-Host ""
 
-    foreach ($k in ($apps.PSObject.Properties.Name | Sort-Object { [int]$_ })) {
+    # Filter and sort only numeric keys
+    $keys = $apps.PSObject.Properties.Name | Where-Object { $_ -match '^\d+$' } | Sort-Object { [int]$_ }
+
+    foreach ($k in $keys) {
         $tool = $apps.$k
         Write-Host ("[{0}] {1}" -f $k, $tool.Name)
     }
@@ -85,26 +43,136 @@ function Show-Menu {
     Write-Host ""
 }
 
-do {
-    Show-Menu
-    $choice = Read-Host "Press a number key (0 to exit, 9 for System Info)..."
+# ==============================
+# Polished System Info Popup
+# ==============================
+function Show-SystemInfo {
+    Add-Type -AssemblyName PresentationFramework
 
-    if ($choice -eq '0') {
-        Write-Host "Exiting BlueDiag..." -ForegroundColor DarkGray
+    $comp = Get-CimInstance Win32_ComputerSystem
+    $bios = Get-CimInstance Win32_BIOS
+    $proc = Get-CimInstance Win32_Processor | Select-Object -First 1
+    $gpu = Get-CimInstance Win32_VideoController | Select-Object -First 1
+    $board = Get-CimInstance Win32_BaseBoard
+    $os = Get-CimInstance Win32_OperatingSystem
+    $disks = Get-PhysicalDisk | ForEach-Object { "$($_.FriendlyName) ($([math]::Round($_.Size / 1GB)) GB)" }
+
+    $info = @(
+        @{ Label = "Device Model"; Value = $comp.Model }
+        @{ Label = "Serial Number"; Value = $bios.SerialNumber }
+        @{ Label = "Processor"; Value = $proc.Name }
+        @{ Label = "Memory (RAM)"; Value = ("{0} GB" -f [math]::Round($comp.TotalPhysicalMemory / 1GB)) }
+        @{ Label = "Storage Drives"; Value = ($disks -join ", ") }
+        @{ Label = "Graphics"; Value = $gpu.Name }
+        @{ Label = "Motherboard"; Value = "$($board.Manufacturer) $($board.Product)" }
+        @{ Label = "OS Version"; Value = "$($os.Caption) ($($os.BuildNumber))" }
+    )
+
+    $window = New-Object System.Windows.Window
+    $window.Title = "🔍 System Information"
+    $window.SizeToContent = "WidthAndHeight"
+    $window.WindowStartupLocation = "CenterScreen"
+    $window.Background = "#1E1E1E"
+    $window.Foreground = "White"
+    $window.FontFamily = "Segoe UI"
+    $window.FontSize = 14
+    $window.Padding = "15"
+    $window.ResizeMode = "NoResize"
+
+    $stack = New-Object System.Windows.Controls.StackPanel
+    $stack.Margin = "5"
+
+    foreach ($item in $info) {
+        $row = New-Object System.Windows.Controls.StackPanel
+        $row.Orientation = "Horizontal"
+        $row.Margin = "0,3,0,3"
+
+        $label = New-Object System.Windows.Controls.TextBlock
+        $label.Text = "$($item.Label): "
+        $label.FontWeight = "Bold"
+        $label.Width = 180
+        $label.Foreground = "LightSkyBlue"
+
+        $value = New-Object System.Windows.Controls.TextBlock
+        $value.Text = $item.Value
+        $value.TextWrapping = "Wrap"
+        $value.Width = 300
+
+        $row.Children.Add($label)
+        $row.Children.Add($value)
+        $stack.Children.Add($row)
+    }
+
+    $btn = New-Object System.Windows.Controls.Button
+    $btn.Content = "OK"
+    $btn.Width = 100
+    $btn.Height = 32
+    $btn.Margin = "0,15,0,0"
+    $btn.HorizontalAlignment = "Center"
+    $btn.FontWeight = "Bold"
+    $btn.Add_Click({ $window.Close() })
+
+    $stack.Children.Add($btn)
+    $window.Content = $stack
+    $window.ShowDialog() | Out-Null
+}
+
+# ==============================
+# Download & Run (Smart Handling)
+# ==============================
+function Download-And-Run($tool) {
+    try {
+        $url = $tool.Url
+        $name = $tool.Name
+        $ext = [System.IO.Path]::GetExtension($url)
+
+        $filePath = Join-Path $env:TEMP "$name$ext"
+
+        if (-not (Test-Path $filePath)) {
+            Write-Host "⬇️ Downloading $name..."
+            Invoke-WebRequest -Uri $url -OutFile $filePath -UseBasicParsing
+        } else {
+            Write-Host "✔️ $name already downloaded."
+        }
+
+        Write-Host "🚀 Launching $name..."
+        switch ($ext) {
+            ".exe" { Start-Process -FilePath $filePath }
+            ".ps1" { Start-Process "powershell.exe" -ArgumentList "-ExecutionPolicy Bypass -File `"$filePath`"" }
+            ".cmd" { Start-Process "cmd.exe" -ArgumentList "/c `"$filePath`"" }
+            default { Start-Process $filePath }
+        }
+    } catch {
+        Write-Host ("❌ Error while launching {0}: {1}" -f $tool.Name, $_.Exception.Message) -ForegroundColor Red
+    }
+}
+
+# ==============================
+# Main Loop
+# ==============================
+while ($true) {
+    Show-Menu
+    Write-Host "Press a number key (0 to exit, 9 for System Info)..."
+    $key = [System.Console]::ReadKey($true).KeyChar
+
+    if ($key -eq '0') {
+        Write-Host "`n✅ Exiting... Goodbye!" -ForegroundColor Green
         break
     }
-    elseif ($choice -eq '9') {
+    elseif ($key -eq '9') {
         Show-SystemInfo
     }
-    elseif ($apps.PSObject.Properties.Name -contains $choice) {
-        $tool = $apps.$choice
-        Download-And-Run $tool
+    elseif ($key -match '^\d+$') {
+        $tool = $apps.$key
+        if ($tool) {
+            Download-And-Run $tool
+            Start-Sleep -Seconds 2
+        } else {
+            Write-Host "`n❌ Invalid choice." -ForegroundColor Red
+            Start-Sleep -Seconds 1.5
+        }
+    } else {
+        Write-Host "`n⚠️ Invalid input. Try again." -ForegroundColor Yellow
+        Start-Sleep -Seconds 1.5
     }
-    else {
-        Write-Host "❌ Invalid selection. Try again." -ForegroundColor Red
-    }
-
-    Write-Host "`nPress Enter to continue..." -ForegroundColor Gray
-    Read-Host | Out-Null
 }
-while ($true)
