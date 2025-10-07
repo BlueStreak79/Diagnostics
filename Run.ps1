@@ -158,7 +158,6 @@ function Download-And-Run($key) {
         } elseif ($extension -eq ".cmd") {
             Write-Host "🚀 Launching executable $name..."
             Start-Process "cmd.exe" -ArgumentList "/c `"$TempPath`""
-
         } else {
             Write-Host "🌐Opening Link In Browser"
             Start-Process $url
