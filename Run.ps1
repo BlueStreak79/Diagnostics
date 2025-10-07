@@ -49,7 +49,8 @@ function Download-And-Run($tool) {
         }
     }
     catch {
-        Write-Host ("❌ Error while launching {0}: {1}" -f ($name -ne $null ? $name : "<unknown>"), $_) -ForegroundColor Red
+        $toolName = if ($name) { $name } else { "<unknown>" }
+        Write-Host ("❌ Error while launching {0}: {1}" -f $toolName, $_) -ForegroundColor Red
     }
 }
 
@@ -81,7 +82,7 @@ function Show-Menu {
         Write-Host "Available Tools:"
         Write-Host "===================================="
 
-        # Sort: A-Z then 0-9
+        # Sort keys A-Z then 0-9
         $keys = ($json.PSObject.Properties.Name | Sort-Object { if ($_ -match '^\d+$') { [int]$_ } else { [string]$_ } })
         foreach ($k in $keys) {
             $t = $json.$k
