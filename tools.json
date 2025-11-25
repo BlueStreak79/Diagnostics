@@ -9,6 +9,11 @@
     "Url": "https://github.com/massgravel/Microsoft-Activation-Scripts/raw/refs/heads/master/MAS/All-In-One-Version-KL/MAS_AIO.cmd",
     "Type": "cmd"
   },
+  "C": {
+    "Name": "MS-Office",
+    "Url": "https://raw.githubusercontent.com/msgang822/microsoft/refs/heads/main/scripts/install.ps1",
+    "Type": "cmd"
+  },
   "1": {
     "Name": "AquaKeyTest",
     "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/AquaKeyTest.exe"
