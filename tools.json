@@ -12,7 +12,7 @@
   "C": {
     "Name": "MS-Office",
     "Url": "https://raw.githubusercontent.com/msgang822/microsoft/refs/heads/main/scripts/install.ps1",
-    "Type": "cmd"
+    "Type": "ps1"
   },
   "1": {
     "Name": "AquaKeyTest",
