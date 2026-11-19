@@ -14,6 +14,11 @@
     "Url": "https://github.com/msgang822/microsoft/raw/refs/heads/main/scripts/install.ps1",
     "Type": "ps1"
   },
+  "D": {
+    "Name": "Winget",
+    "Url": "https://github.com/BlueStreak79/Diagnostics/raw/refs/heads/main/Winget.ps1",
+    "Type": "ps1"
+  },
   "1": {
     "Name": "AquaKeyTest",
     "Url": "https://github.com/BlueStreak79/Diagnostics/raw/main/AquaKeyTest.exe"
